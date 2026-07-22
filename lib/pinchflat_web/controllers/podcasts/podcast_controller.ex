@@ -55,12 +55,33 @@ defmodule PinchflatWeb.Podcasts.PodcastController do
   def episode_image(conn, %{"uuid" => uuid}) do
     media_item = Repo.get_by!(MediaItem, uuid: uuid)
 
-    if media_item.thumbnail_filepath && File.exists?(media_item.thumbnail_filepath) do
-      conn
-      |> put_resp_content_type(MIME.from_path(media_item.thumbnail_filepath))
-      |> send_file(200, media_item.thumbnail_filepath)
-    else
-      send_resp(conn, 404, "Image not found")
+    cond do
+      media_item.thumbnail_filepath && File.exists?(media_item.thumbnail_filepath) ->
+        conn
+        |> put_resp_content_type(MIME.from_path(media_item.thumbnail_filepath))
+        |> send_file(200, media_item.thumbnail_filepath)
+
+      media_item.media_filepath && File.exists?(media_item.media_filepath) ->
+        # Try to extract the embedded thumbnail (MJPEG stream at 0:v:1)
+        case System.cmd("ffmpeg", [
+               "-i", media_item.media_filepath,
+               "-map", "0:v:1",
+               "-vframes", "1",
+               "-f", "image2pipe",
+               "-c:v", "mjpeg",
+               "pipe:1"
+             ]) do
+          {image_data, 0} ->
+            conn
+            |> put_resp_content_type("image/jpeg")
+            |> send_resp(200, image_data)
+
+          _ ->
+            send_resp(conn, 404, "Image not found")
+        end
+
+      true ->
+        send_resp(conn, 404, "Image not found")
     end
   end
 end
