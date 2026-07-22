@@ -1,0 +1,12 @@
+services:
+  pinchflat-server:
+    build:
+      context: .
+      dockerfile: docker/selfhosted.Dockerfile
+    container_name: pinchflat-server
+    ports:
+      - "8945:8945"
+    volumes:
+      - ./config:/config
+      - ./downloads:/downloads
+    restart: unless-stopped
