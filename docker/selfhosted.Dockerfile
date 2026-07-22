@@ -13,31 +13,32 @@ ARG TARGETPLATFORM
 RUN echo "Building for ${TARGETPLATFORM:?}"
 
 # install build dependencies
+# 1. Install basic dependencies
 RUN apt-get update -y && \
-    # System packages
-    apt-get install -y \
-      build-essential \
-      git \
-      curl && \
-    # Node.js and Yarn
-    curl -sL https://deb.nodesource.com/setup_20.x -o nodesource_setup.sh && \
-    bash nodesource_setup.sh && \
+    apt-get install -y build-essential git curl gnupg ca-certificates
+
+# 2. Set up modern NodeSource signing key and repository
+RUN mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
+
+# 3. Install Node.js, Yarn, and clean up package managers
+RUN apt-get update -y && \
     apt-get install -y nodejs && \
     npm install -g yarn && \
-    # Hex and Rebar
-    mix local.hex --force && \
-    mix local.rebar --force && \
-    # FFmpeg (latest build that doesn't cause an illegal instruction error for some users - see #347)
-    export FFMPEG_DOWNLOAD=$(case ${TARGETPLATFORM:-linux/amd64} in \
-    "linux/amd64")   echo "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2024-07-30-14-10/ffmpeg-N-116468-g0e09f6d690-linux64-gpl.tar.xz"   ;; \
-    "linux/arm64")   echo "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2024-07-30-14-10/ffmpeg-N-116468-g0e09f6d690-linuxarm64-gpl.tar.xz" ;; \
-    *)               echo ""        ;; esac) && \
-    curl -L ${FFMPEG_DOWNLOAD} --output /tmp/ffmpeg.tar.xz && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# 4. Force mix tools to download local dependencies
+RUN mix local.hex --force && \
+    mix local.rebar --force
+
+# 5. Fetch and extract the latest rolling stable FFmpeg binaries 
+RUN export FFMPEG_DOWNLOAD=$(case ${TARGETPLATFORM:-linux/amd64} in "linux/amd64") echo "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz" ;; "linux/arm64") echo "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linuxarm64-gpl.tar.xz" ;; *) echo "" ;; esac) && \
+    curl -L "${FFMPEG_DOWNLOAD}" --output /tmp/ffmpeg.tar.xz && \
     tar -xf /tmp/ffmpeg.tar.xz --strip-components=2 --no-anchored -C /usr/local/bin/ "ffmpeg" && \
     tar -xf /tmp/ffmpeg.tar.xz --strip-components=2 --no-anchored -C /usr/local/bin/ "ffprobe" && \
-    # Cleanup
-    apt-get clean && \
-    rm -f /var/lib/apt/lists/*_*
+    rm -f /tmp/ffmpeg.tar.xz
 
 # prepare build dir
 WORKDIR /app
