@@ -80,6 +80,7 @@ defmodule PinchflatWeb.Router do
 
     get "/videos", Api.V1.VideoController, :index
     delete "/videos/:id", Api.V1.VideoController, :delete
+    post "/videos/:id/ignore", Api.V1.VideoController, :ignore
     post "/sources", Api.V1.SourceController, :create
   end
 

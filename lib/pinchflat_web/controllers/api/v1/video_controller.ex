@@ -30,6 +30,14 @@ defmodule PinchflatWeb.Api.V1.VideoController do
     send_resp(conn, 204, "")
   end
 
+  def ignore(conn, %{"id" => id}) do
+    id
+    |> Media.get_media_item!()
+    |> Media.delete_media_files(%{prevent_download: true})
+
+    send_resp(conn, 204, "")
+  end
+
   defp thumbnail_url(conn, video) do
     if video.media_filepath do
       extension =
