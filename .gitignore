@@ -45,3 +45,7 @@ scratchpad.md
 # Database files
 *.db
 *.db-*
+
+# Runtime data (not source code)
+/config/
+/downloads/
