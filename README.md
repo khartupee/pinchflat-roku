@@ -25,7 +25,6 @@ No database changes. No breaking changes. You can replace the `kieraneglin/pinch
 - [Features](#features)
 - [Screenshots](#screenshots)
 - [Installation](#installation)
-  - [Unraid](#unraid)
   - [Portainer](#portainer)
   - [Docker](#docker)
   - [Environment Variables](#environment-variables)
@@ -74,9 +73,7 @@ If it doesn't work for your use case, please make a feature request! You can als
 
 ## Installation
 
-### Unraid
 
-Simply search for Pinchflat in the Community Apps store!
 
 ### Portainer
 
@@ -86,7 +83,6 @@ Simply search for Pinchflat in the Community Apps store!
 Docker Compose file:
 
 ```yaml
-version: '3'
 services:
   pinchflat:
     image: ghcr.io/khartupee/pinchflat-roku:latest
