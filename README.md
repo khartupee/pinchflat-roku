@@ -1,4 +1,4 @@
-# Pinchflat Roku Client
+# Pinchflat Roku
 
 A native Roku channel for [Pinchflat](https://github.com/khartupee/pinchflat-roku) — watch your downloaded YouTube content directly on your TV.
 
@@ -83,7 +83,7 @@ If it doesn't work for your use case, please make a feature request! You can als
 Docker Compose file:
 
 ```yaml
-services:
+clieservices:
   pinchflat:
     image: ghcr.io/khartupee/pinchflat-roku:latest
     environment:
