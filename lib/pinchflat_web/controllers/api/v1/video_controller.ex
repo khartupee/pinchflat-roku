@@ -14,6 +14,8 @@ defmodule PinchflatWeb.Api.V1.VideoController do
           id: video.id,
           title: video.title,
           description: video.description,
+          duration_seconds: video.duration_seconds,
+          playback_position_seconds: video.playback_position_seconds,
           thumbnail_url: thumbnail_url(conn, video),
           stream_url: stream_url(conn, video)
         }
@@ -36,6 +38,15 @@ defmodule PinchflatWeb.Api.V1.VideoController do
     |> Media.delete_media_files(%{prevent_download: true})
 
     send_resp(conn, 204, "")
+  end
+
+  def save_progress(conn, %{"id" => id, "position" => position}) do
+    media_item = Media.get_media_item!(id)
+
+    case Media.update_media_item(media_item, %{playback_position_seconds: position}) do
+      {:ok, _} -> send_resp(conn, 204, "")
+      {:error, _} -> send_resp(conn, 422, Jason.encode!(%{error: "Invalid position"}))
+    end
   end
 
   defp thumbnail_url(conn, video) do

@@ -45,7 +45,9 @@ defmodule Pinchflat.Media.MediaItem do
     :prevent_download,
     :prevent_culling,
     :culled_at,
-    :media_redownloaded_at
+    :media_redownloaded_at,
+    # Playback tracking for Roku client resume feature
+    :playback_position_seconds
   ]
   # Pretty much all the fields captured at index are required.
   @required_fields ~w(
@@ -93,6 +95,7 @@ defmodule Pinchflat.Media.MediaItem do
     field :prevent_download, :boolean, default: false
     field :prevent_culling, :boolean, default: false
     field :culled_at, :utc_datetime
+    field :playback_position_seconds, :integer, default: 0
 
     field :matching_search_term, :string, virtual: true
 
