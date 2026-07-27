@@ -17,17 +17,18 @@ RUN echo "Building for ${TARGETPLATFORM:?}"
 RUN apt-get update -y && \
     apt-get install -y build-essential git curl gnupg ca-certificates
 
-# 2. Set up modern NodeSource signing key and repository
-RUN mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
+# 2. Install Node.js directly from binary tarball
+ARG NODE_VERSION=20.18.0
+RUN export NODE_DOWNLOAD=$(case ${TARGETPLATFORM:-linux/amd64} in \
+    "linux/amd64")   echo "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" ;; \
+    "linux/arm64")   echo "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-arm64.tar.xz" ;; \
+    *)               echo "" ;; esac) && \
+    curl -L "${NODE_DOWNLOAD}" --output /tmp/node.tar.xz && \
+    tar -xf /tmp/node.tar.xz --strip-components=1 -C /usr/local && \
+    rm -f /tmp/node.tar.xz
 
-# 3. Install Node.js, Yarn, and clean up package managers
-RUN apt-get update -y && \
-    apt-get install -y nodejs && \
-    npm install -g yarn && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# 3. Install Yarn and clean up
+RUN npm install -g yarn
 
 # 4. Force mix tools to download local dependencies
 RUN mix local.hex --force && \
