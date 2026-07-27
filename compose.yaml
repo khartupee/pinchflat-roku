@@ -3,7 +3,7 @@ services:
     image: ghcr.io/khartupee/pinchflat-roku:latest
     container_name: pinchflat-server
     ports:
-      - "8945:8945"
+      - '8945:8945'
     volumes:
       - ./config:/config
       - ./downloads:/downloads

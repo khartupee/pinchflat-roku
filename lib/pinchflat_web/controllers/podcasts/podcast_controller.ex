@@ -64,11 +64,16 @@ defmodule PinchflatWeb.Podcasts.PodcastController do
       media_item.media_filepath && File.exists?(media_item.media_filepath) ->
         # Try to extract the embedded thumbnail (MJPEG stream at 0:v:1)
         case System.cmd("ffmpeg", [
-               "-i", media_item.media_filepath,
-               "-map", "0:v:1",
-               "-vframes", "1",
-               "-f", "image2pipe",
-               "-c:v", "mjpeg",
+               "-i",
+               media_item.media_filepath,
+               "-map",
+               "0:v:1",
+               "-vframes",
+               "1",
+               "-f",
+               "image2pipe",
+               "-c:v",
+               "mjpeg",
                "pipe:1"
              ]) do
           {image_data, 0} ->

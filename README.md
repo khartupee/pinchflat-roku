@@ -73,8 +73,6 @@ If it doesn't work for your use case, please make a feature request! You can als
 
 ## Installation
 
-
-
 ### Portainer
 
 > [!IMPORTANT]  
@@ -83,7 +81,7 @@ If it doesn't work for your use case, please make a feature request! You can als
 Docker Compose file:
 
 ```yaml
-clieservices:
+services:
   pinchflat:
     image: ghcr.io/khartupee/pinchflat-roku:latest
     environment:
@@ -151,19 +149,19 @@ If you change this setting and it works well for you, please leave a comment on 
 
 ### Environment variables
 
-| Name                        | Required? | Default                   | Notes                                                                                                                                     |
-| --------------------------- | --------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `TZ`                        | No        | `UTC`                     | Must follow IANA TZ format                                                                                                                |
-| `LOG_LEVEL`                 | No        | `debug`                   | Can be set to `info` but `debug` is strongly recommended                                                                                  |
-| `UMASK`                     | No        | `022`                     | Unraid users may want to set this to `000`                                                                                                |
+| Name                        | Required? | Default                   | Notes                                                                                                                                        |
+| --------------------------- | --------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TZ`                        | No        | `UTC`                     | Must follow IANA TZ format                                                                                                                   |
+| `LOG_LEVEL`                 | No        | `debug`                   | Can be set to `info` but `debug` is strongly recommended                                                                                     |
+| `UMASK`                     | No        | `022`                     | Unraid users may want to set this to `000`                                                                                                   |
 | `BASIC_AUTH_USERNAME`       | No        |                           | See [authentication docs](https://github.com/khartupee/pinchflat-roku/wiki/Username-and-Password)                                            |
 | `BASIC_AUTH_PASSWORD`       | No        |                           | See [authentication docs](https://github.com/khartupee/pinchflat-roku/wiki/Username-and-Password)                                            |
 | `EXPOSE_FEED_ENDPOINTS`     | No        | `false`                   | See [RSS feed docs](https://github.com/khartupee/pinchflat-roku/wiki/Podcast-RSS-Feeds)                                                      |
-| `ENABLE_IPV6`               | No        | `false`                   | Setting to _any_ non-blank value will enable IPv6                                                                                         |
-| `JOURNAL_MODE`              | No        | `wal`                     | Set to `delete` if your config directory is stored on a network share (not recommended)                                                   |
-| `TZ_DATA_DIR`               | No        | `/etc/elixir_tzdata_data` | The container path where the timezone database is stored                                                                                  |
-| `BASE_ROUTE_PATH`           | No        | `/`                       | The base path for route generation. Useful when running behind certain reverse proxies - prefixes must be stripped.                       |
-| `YT_DLP_WORKER_CONCURRENCY` | No        | `2`                       | The number of concurrent workers that use `yt-dlp` _per queue_. Set to 1 if you're getting IP limited, otherwise don't touch it           |
+| `ENABLE_IPV6`               | No        | `false`                   | Setting to _any_ non-blank value will enable IPv6                                                                                            |
+| `JOURNAL_MODE`              | No        | `wal`                     | Set to `delete` if your config directory is stored on a network share (not recommended)                                                      |
+| `TZ_DATA_DIR`               | No        | `/etc/elixir_tzdata_data` | The container path where the timezone database is stored                                                                                     |
+| `BASE_ROUTE_PATH`           | No        | `/`                       | The base path for route generation. Useful when running behind certain reverse proxies - prefixes must be stripped.                          |
+| `YT_DLP_WORKER_CONCURRENCY` | No        | `2`                       | The number of concurrent workers that use `yt-dlp` _per queue_. Set to 1 if you're getting IP limited, otherwise don't touch it              |
 | `ENABLE_PROMETHEUS`         | No        | `false`                   | Setting to _any_ non-blank value will enable Prometheus. See [docs](https://github.com/khartupee/pinchflat-roku/wiki/Prometheus-and-Grafana) |
 
 ### Reverse Proxies
