@@ -1,6 +1,8 @@
 services:
   pinchflat-server:
-    image: ghcr.io/khartupee/pinchflat-roku:latest
+    build:
+      context: .
+      dockerfile: ./docker/selfhosted.Dockerfile
     container_name: pinchflat-server
     ports:
       - '8945:8945'
