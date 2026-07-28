@@ -43,9 +43,11 @@ This workspace (`pinchflat-workspace`) manages two co-dependent repositories tha
   - **Main Grid / Poster List:** Renders available Pinchflat media items visually.
   - **Video Player Node (`Video`):** Handles video stream playback given direct media URLs. Supports play, stop, and standard remote controls (such as back-button intercepts).
   - **Admin Actions Screen:** UI controls (accessible via the Options `*` button) for triggering media deletion directly from the TV remote.
+  - **VideoItemNode (`VideoItemNode.xml`):** Custom SceneGraph component extending ContentNode with `playbackPosition` and `durationSeconds` fields for resume playback tracking.
+  - **InputTask (`InputTask.brs`):** Background Task node that listens for deep link events via `roInput`, enabling external launches from other Roku channels or Roku search.
 - **Registry & Persistent Settings:**
   - Uses `roRegistrySection` with section name `"AppSettings"`.
-  - **`serverURL`**: String representing the custom server IP and port (e.g., `192.168.1.7:8945`).
+  - **`serverURL`**: String representing the custom server IP and port (e.g., `https://192.168.1.7:8945`). The client normalizes all URLs to HTTPS via `rewriteURL()` to prevent NGINX redirect issues.
   - **`showPostPlayDialog`**: Boolean ("true"/"false") indicating whether to show a confirmation dialog when a video finishes playing.
 - **Networking & Data Flow:**
   - Uses `roUrlTransfer` inside asynchronous SceneGraph `Task` nodes (`APITask`) for non-blocking HTTP API calls.
@@ -57,17 +59,18 @@ This workspace (`pinchflat-workspace`) manages two co-dependent repositories tha
 
 ### Base URL Structure
 
-`http://<SERVER_IP>:8945/` (Rewritten dynamically in the client via the custom `serverURL` registry setting).
+`https://<SERVER_IP>:8945/` (Rewritten dynamically in the client via the custom `serverURL` registry setting). The client defaults all URLs to HTTPS because the NGINX reverse proxy (`roku.hartupee.com`) redirects HTTP→HTTPS, and this redirect silently converts PATCH/PUT requests into GET requests, breaking write operations.
 
 ### Primary Endpoints Table
 
-| Intent                             | HTTP Method | Endpoint                           | Example Request                                   | Expected Response                                                                                                            |
-| :--------------------------------- | :---------- | :--------------------------------- | :------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------- |
-| **Get Downloaded Videos**          | `GET`       | `/api/v1/videos`                   | `http://<IP>:8945/api/v1/videos`                  | JSON array of downloaded video objects                                                                                       |
-| **Stream Video (Range-supported)** | `GET`       | `/media/:uuid/stream`              | `http://<IP>:8945/media/<uuid>/stream`            | Video stream (supports seeking/rewinding)                                                                                    |
-| **Get Video Thumbnail**            | `GET`       | `/media/:uuid/episode_image.<ext>` | `http://<IP>:8945/media/<uuid>/episode_image.jpg` | Returns separate `.jpg` if present on disk; otherwise extracts embedded cover art on-the-fly from the `.mp4` using `ffmpeg`. |
-| **Delete Media**                   | `DELETE`    | `/api/v1/videos/:id`               | `DELETE http://<IP>:8945/api/v1/videos/:id`       | `204 No Content` (deletes both DB record and physical files on disk)                                                         |
-| **Ignore Media**                   | `POST`      | `/api/v1/videos/:id/ignore`        | `POST http://<IP>:8945/api/v1/videos/:id/ignore`  | Registers an ignore/exclusion rule for a video on the server                                                                 |
+| Intent                             | HTTP Method | Endpoint                           | Example Request                                                                   | Expected Response                                                                                                            |
+| :--------------------------------- | :---------- | :--------------------------------- | :-------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- |
+| **Get Downloaded Videos**          | `GET`       | `/api/v1/videos`                   | `https://<IP>:8945/api/v1/videos`                                                 | JSON array of downloaded video objects (includes `duration_seconds` and `playback_position_seconds`)                         |
+| **Stream Video (Range-supported)** | `GET`       | `/media/:uuid/stream`              | `https://<IP>:8945/media/<uuid>/stream`                                           | Video stream (supports seeking/rewinding)                                                                                    |
+| **Get Video Thumbnail**            | `GET`       | `/media/:uuid/episode_image.<ext>` | `https://<IP>:8945/media/<uuid>/episode_image.jpg`                                | Returns separate `.jpg` if present on disk; otherwise extracts embedded cover art on-the-fly from the `.mp4` using `ffmpeg`. |
+| **Delete Media**                   | `DELETE`    | `/api/v1/videos/:id`               | `DELETE https://<IP>:8945/api/v1/videos/:id`                                      | `204 No Content` (deletes both DB record and physical files on disk)                                                         |
+| **Ignore Media**                   | `POST`      | `/api/v1/videos/:id/ignore`        | `POST https://<IP>:8945/api/v1/videos/:id/ignore`                                 | Registers an ignore/exclusion rule for a video on the server                                                                 |
+| **Save Playback Position**         | `PATCH`     | `/api/v1/videos/:id/progress`      | `PATCH https://<IP>:8945/api/v1/videos/:id/progress` with body `{"position":120}` | `204 No Content` (saves resume position in seconds)                                                                          |
 
 ---
 
@@ -89,3 +92,19 @@ When generating, refactoring, or inspecting code across this workspace, strictly
    - **Do not read thread-updated fields dynamically in callbacks.** Observers on the Main or Task thread (such as `onThumbnailLoaded` or `onActionRequest`) must accept the `event` parameter and extract data safely with `event.GetData()`. This prevents multi-threaded overwrites and race conditions.
 5. **Dynamic Deployment Paths:**
    - Deployment scripts (`deploy.sh` and `deployultra.sh`) dynamically resolve their path using `PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"`. This ensures they always target your active workspace (`pinchflat-workspace/pinchflat-roku-client`) regardless of how they are invoked.
+6. **HTTPS Normalization:**
+   - The `rewriteURL()` function and all URL construction must default to `https://`. NGINX Proxy Manager sends a 301 redirect from HTTP→HTTPS, which changes PATCH/POST/PUT requests into GET requests, silently dropping the body and method. This is invisible to `roUrlTransfer` which follows redirects automatically.
+7. **Custom SceneGraph Components for Data:**
+   - ContentNode cannot store custom fields — they are silently ignored at runtime. To store additional data (like `playbackPosition` or `durationSeconds`), create a custom `.xml` component that extends `<Content>` with `<interface>` fields. See `VideoItemNode.xml` for the pattern.
+8. **Resume Playback Flow:**
+   - Position is saved in two ways: (a) on back-key press via `onKeyEvent("back")`, and (b) periodically every 15 seconds via a `roTimer` (`positionSaveTimer`). The timer is necessary because the Home button does not trigger `onKeyEvent`, so periodic saves prevent data loss.
+   - On video select, if `playbackPosition > 0`, a resume dialog offers "Resume from X:XX" / "Start from Beginning" / "Cancel". Resume calls `startPlayback(itemIndex, startPosition)` which sets `videoContent.playStart`. When a video finishes (`"finished"` state), the position is cleared to 0 on the server.
+9. **Deep Linking:**
+   - The channel registers `supports_input_launch=1` in `manifest` and includes an `InputTask` node that listens for deep link events via `roInput`. This allows external launches (e.g., from another channel or Roku search) to open specific content.
+10. **BrightScript Gotchas:**
+
+- No ternary operator `? :` — use if/else with a result variable.
+- `pos` is a reserved builtin function — cannot be used as a variable name.
+- `Val()` requires a String argument; pass `Str(int_value)` if you have an Integer.
+- `roUrlTransfer.PostFromString()` returns Integer (0 = success), not String. Compare with `== 0`, not `== "0"`.
+- Backticks `` ` `` are not valid string delimiters — use double quotes.
