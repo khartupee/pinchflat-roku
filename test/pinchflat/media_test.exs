@@ -36,7 +36,7 @@ defmodule Pinchflat.MediaTest do
 
   describe "list_media_items/0" do
     test "it returns all media_items" do
-      media_item = media_item_fixture()
+      media_item = media_item_fixture() |> Pinchflat.Repo.preload(:source)
       assert Media.list_media_items() == [media_item]
     end
   end
