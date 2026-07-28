@@ -77,6 +77,7 @@ defmodule PinchflatWeb.Podcasts.PodcastController do
                "pipe:1"
              ]) do
           {image_data, 0} ->
+            # sobelow_skip ["XSS.SendResp"]
             conn
             |> put_resp_content_type("image/jpeg")
             |> send_resp(200, image_data)

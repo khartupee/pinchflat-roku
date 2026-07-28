@@ -45,7 +45,7 @@ defmodule PinchflatWeb.Api.V1.VideoController do
 
     case Media.update_media_item(media_item, %{playback_position_seconds: position}) do
       {:ok, _} -> send_resp(conn, 204, "")
-      {:error, _} -> send_resp(conn, 422, Jason.encode!(%{error: "Invalid position"}))
+      {:error, _} -> json(conn, %{error: "Invalid position"})
     end
   end
 
