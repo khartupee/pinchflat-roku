@@ -24,7 +24,7 @@ defmodule Pinchflat.Media do
   Returns [%MediaItem{}, ...].
   """
   def list_media_items do
-    Repo.all(MediaItem)
+    Repo.all(MediaItem) |> Repo.preload(:source)
   end
 
   @doc """

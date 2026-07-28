@@ -16,6 +16,8 @@ defmodule PinchflatWeb.Api.V1.VideoController do
           description: video.description,
           duration_seconds: video.duration_seconds,
           playback_position_seconds: video.playback_position_seconds,
+          source_id: video.source_id,
+          source_name: video.source.custom_name,
           thumbnail_url: thumbnail_url(conn, video),
           stream_url: stream_url(conn, video)
         }
