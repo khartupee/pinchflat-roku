@@ -3,6 +3,23 @@ defmodule PinchflatWeb.Api.V1.SourceController do
 
   alias Pinchflat.Sources
 
+  def index(conn, _params) do
+    sources = Sources.list_sources()
+
+    result =
+      Enum.map(sources, fn source ->
+        %{
+          id: source.id,
+          uuid: source.uuid,
+          name: source.custom_name,
+          description: source.description,
+          collection_type: source.collection_type
+        }
+      end)
+
+    json(conn, result)
+  end
+
   def create(conn, %{"url" => url}) do
     case Sources.create_source(%{"original_url" => url}) do
       {:ok, _source} ->

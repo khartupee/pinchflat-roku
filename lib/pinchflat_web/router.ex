@@ -82,6 +82,7 @@ defmodule PinchflatWeb.Router do
     delete "/videos/:id", Api.V1.VideoController, :delete
     post "/videos/:id/ignore", Api.V1.VideoController, :ignore
     patch "/videos/:id/progress", Api.V1.VideoController, :save_progress
+    get "/sources", Api.V1.SourceController, :index
     post "/sources", Api.V1.SourceController, :create
   end
 

@@ -40,18 +40,41 @@ This workspace (`pinchflat-workspace`) manages two co-dependent repositories tha
 - **Primary Role:** Native Roku channel UI for media consumption and library management on TV.
 - **Tech Stack:** BrightScript, Roku SceneGraph (RSG).
 - **Key Components:**
-  - **Main Grid / Poster List:** Renders available Pinchflat media items visually.
+  - **Main Grid (`MarkupList` with `CompactRow`):** A vertical `MarkupList` using `itemComponentName="CompactRow"`. Renders each item as a `CompactRow` component. Three layout modes selectable from **Settings → Change Layout**:
+    - **Standard:** Flat list of video titles only. No headers.
+    - **Grouped:** Source headers (focusable) followed by video titles beneath. Headers display source name in header labels (light blue).
+    - **Compact:** Source headers (focusable) followed by video titles + duration + upload date. Duration in teal on the right, date in muted gray below it.
+  - **`CompactRow.xml` / `CompactRow.brs`:** Custom row component extending `Group`. Reads `itemContent` (the `VideoItemNode`) and renders labels based on `layoutMode` and `isHeader`. Contains 4 thin `Rectangle` nodes forming the white focus outline (2px borders on all sides), toggled via the `rowFocused` field on the content node.
+  - **Focus Indicator:** Uses a `rowFocused` boolean field on `VideoItemNode`. `MainScene.brs` sets it to `true`/`false` as focus changes. `CompactRow` observes `itemContent.rowFocused` and shows/hides the white outline `Group`.
   - **Video Player Node (`Video`):** Handles video stream playback given direct media URLs. Supports play, stop, and standard remote controls (such as back-button intercepts).
   - **Admin Actions Screen:** UI controls (accessible via the Options `*` button) for triggering media deletion directly from the TV remote.
-  - **VideoItemNode (`VideoItemNode.xml`):** Custom SceneGraph component extending ContentNode with `playbackPosition` and `durationSeconds` fields for resume playback tracking.
-  - **InputTask (`InputTask.brs`):** Background Task node that listens for deep link events via `roInput`, enabling external launches from other Roku channels or Roku search.
+  - **Layout Picker Dialog:** A `StandardMessageDialog` with 4 buttons (Standard/Grouped/Compact/Cancel) opened from **Settings → Change Layout**. On selection, saves `layoutMode` to registry and rebuilds the content tree.
+  - **Resume Dialog:** A `StandardMessageDialog` offered on video play if `playbackPosition > 10s` and `< 95%` of duration. Options: "Resume from X:XX", "Start from Beginning", "Cancel".
+  - **`VideoItemNode.xml`:** Custom SceneGraph component extending `ContentNode` with fields:
+    - `playbackPosition` (integer) — resume position in seconds
+    - `durationSeconds` (integer) — total video duration in seconds
+    - `sourceId` (integer) — database ID of the source
+    - `sourceName` (string) — display name of the source
+    - `uploadDate` (string) — video upload date for compact mode
+    - `isHeader` (boolean) — true for source header nodes (not playable)
+    - `layoutMode` (string) — layout mode active when this node was created
+    - `rowFocused` (boolean) — set by `MainScene.brs` to toggle focus outline
+  - **`APITask.brs` / `APITask.xml`:** Background `Task` node for all HTTP API calls. Fetches videos (`GET /api/v1/videos`), fetches sources (`GET /api/v1/sources`), downloads thumbnails to `tmp:/`, saves playback progress, and sends delete/ignore actions. Outputs:
+    - `content` — array of video content nodes
+    - `sources` — array of source objects (id, uuid, name, description, collection_type)
+    - `thumbnailResult` — `{id, localPath}` after download
+    - `errorMessage` — on connection failure
+  - **`InputTask.brs`:** Background Task node that listens for deep link events via `roInput`, enabling external launches from other Roku channels or Roku search.
 - **Registry & Persistent Settings:**
   - Uses `roRegistrySection` with section name `"AppSettings"`.
   - **`serverURL`**: String representing the custom server IP and port (e.g., `https://192.168.1.7:8945`). The client normalizes all URLs to HTTPS via `rewriteURL()` to prevent NGINX redirect issues.
-  - **`showPostPlayDialog`**: Boolean ("true"/"false") indicating whether to show a confirmation dialog when a video finishes playing.
+  - **`showPostPlayDialog`**: Boolean ("true"/"false") — whether to show "Video Finished" dialog after playback ends.
+  - **`layoutMode`**: String — one of `"standard"`, `"grouped"`, `"compact"`. Controls the MarkupList rendering mode.
 - **Networking & Data Flow:**
   - Uses `roUrlTransfer` inside asynchronous SceneGraph `Task` nodes (`APITask`) for non-blocking HTTP API calls.
   - Dynamic server target URL is configured globally.
+- **Source Header Descriptions:** When a source header is focused, `MainScene.brs` looks up the source description from `m.sourceLookup` (populated from `GET /api/v1/sources`), moves the preview labels into the poster area, and displays the source name and description.
+- **Font Limitations:** Custom TTF/OTF fonts (loaded via XML `<Font>` nodes or `roFontRegistry`) do not render on this Roku device. Only built-in system fonts are usable: `LargeBoldSystemFont`, `MediumBoldSystemFont`, `SmallSystemFont`.
 
 ---
 
@@ -66,6 +89,7 @@ This workspace (`pinchflat-workspace`) manages two co-dependent repositories tha
 | Intent                             | HTTP Method | Endpoint                           | Example Request                                                                   | Expected Response                                                                                                            |
 | :--------------------------------- | :---------- | :--------------------------------- | :-------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- |
 | **Get Downloaded Videos**          | `GET`       | `/api/v1/videos`                   | `https://<IP>:8945/api/v1/videos`                                                 | JSON array of downloaded video objects (includes `duration_seconds` and `playback_position_seconds`)                         |
+| **Get Sources**                    | `GET`       | `/api/v1/sources`                  | `https://<IP>:8945/api/v1/sources`                                                | JSON array of source objects (`id`, `uuid`, `name`, `description`, `collection_type`)                                       |
 | **Stream Video (Range-supported)** | `GET`       | `/media/:uuid/stream`              | `https://<IP>:8945/media/<uuid>/stream`                                           | Video stream (supports seeking/rewinding)                                                                                    |
 | **Get Video Thumbnail**            | `GET`       | `/media/:uuid/episode_image.<ext>` | `https://<IP>:8945/media/<uuid>/episode_image.jpg`                                | Returns separate `.jpg` if present on disk; otherwise extracts embedded cover art on-the-fly from the `.mp4` using `ffmpeg`. |
 | **Delete Media**                   | `DELETE`    | `/api/v1/videos/:id`               | `DELETE https://<IP>:8945/api/v1/videos/:id`                                      | `204 No Content` (deletes both DB record and physical files on disk)                                                         |
@@ -105,6 +129,8 @@ When generating, refactoring, or inspecting code across this workspace, strictly
 
 - No ternary operator `? :` — use if/else with a result variable.
 - `pos` is a reserved builtin function — cannot be used as a variable name.
+- `rem` is a reserved keyword (REM comment) — cannot be used as a variable name. Use `remaining` instead.
 - `Val()` requires a String argument; pass `Str(int_value)` if you have an Integer.
 - `roUrlTransfer.PostFromString()` returns Integer (0 = success), not String. Compare with `== 0`, not `== "0"`.
 - Backticks `` ` `` are not valid string delimiters — use double quotes.
+- Custom TTF/OTF fonts do not render on this Roku firmware (tested via XML `<Font>` nodes and `roFontRegistry`). Only built-in Roku system fonts are usable: `LargeBoldSystemFont`, `MediumBoldSystemFont`, `SmallSystemFont`.
