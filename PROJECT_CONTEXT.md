@@ -1,4 +1,3 @@
-
 # Unified Workspace Context: Pinchflat + Roku Client
 
 ## 1. Project Architecture Overview
