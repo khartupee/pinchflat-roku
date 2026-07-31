@@ -1,3 +1,4 @@
+
 # Unified Workspace Context: Pinchflat + Roku Client
 
 ## 1. Project Architecture Overview
@@ -34,6 +35,8 @@ This workspace (`pinchflat-workspace`) manages two co-dependent repositories tha
   - Serving media library metadata endpoints and thumbnail image assets.
   - Streaming local video files directly to client devices over HTTP with byte-range support.
   - Processing administrative actions (e.g., deleting local media files, registering ignore rules for feeds or individual videos).
+- **Basic Auth Configuration:** The server supports `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD` environment variables in `compose.yaml`. When set, all `/api/v1` endpoints require Basic Authentication. The `:api_v1` pipeline in `router.ex` includes `plug :basic_auth` (added as a one-line change). When these env vars are NOT set, the plug is a no-op — the API works without authentication.
+- **Docker CRLF Fix:** The `selfhosted.Dockerfile` includes a `sed` step to strip `\r` from all shell scripts after `mix release`. This is required because Windows Docker builds produce CRLF line endings in the release artifacts, causing `bash: \r: command not found` errors in the container.
 
 ### B. Frontend: `roku-client/` (stored in `pinchflat-roku-client/`)
 
@@ -49,7 +52,7 @@ This workspace (`pinchflat-workspace`) manages two co-dependent repositories tha
   - **Video Player Node (`Video`):** Handles video stream playback given direct media URLs. Supports play, stop, and standard remote controls (such as back-button intercepts).
   - **Admin Actions Screen:** UI controls (accessible via the Options `*` button) for triggering media deletion directly from the TV remote.
   - **Layout Picker Dialog:** A `StandardMessageDialog` with 4 buttons (Standard/Grouped/Compact/Cancel) opened from **Settings → Change Layout**. On selection, saves `layoutMode` to registry and rebuilds the content tree.
-  - **Resume Dialog:** A `StandardMessageDialog` offered on video play if `playbackPosition > 10s` and `< 95%` of duration. Options: "Resume from X:XX", "Start from Beginning", "Cancel".
+  - **Resume Dialog:** A `StandardMessageDialog` offered on video play if `playbackPosition > 10s` and `< 95%` of duration. Options: "Resume from X:XX" / "Start from Beginning" / "Cancel".
   - **`VideoItemNode.xml`:** Custom SceneGraph component extending `ContentNode` with fields:
     - `playbackPosition` (integer) — resume position in seconds
     - `durationSeconds` (integer) — total video duration in seconds
@@ -65,11 +68,19 @@ This workspace (`pinchflat-workspace`) manages two co-dependent repositories tha
     - `thumbnailResult` — `{id, localPath}` after download
     - `errorMessage` — on connection failure
   - **`InputTask.brs`:** Background Task node that listens for deep link events via `roInput`, enabling external launches from other Roku channels or Roku search.
+- **Basic Auth Support:** The client supports Basic Authentication for servers that require it. The server (`pinchflat-roku`) is configured with `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD` in `compose.yaml`.
+  - **Auth Flow:** On launch, the client always tries loading the feed first (with or without saved credentials). If the feed fails AND the server healthcheck succeeds, the client prompts for username and password (two-step dialog: username → password). If the server doesn't require auth, the feed loads without any auth prompt.
+  - **`setupAuth(request)` in `APITask.brs`:** Adds `Authorization: Basic <base64>` header to all `roUrlTransfer` requests when credentials are configured. Does nothing if username is empty.
+  - **`base64Encode(input)` in `APITask.brs`:** Manual base64 implementation using `Int()` division and `Mod` — the Roku firmware does NOT support `EncodeData()` as a global function (runtime error `&he0`), and the `\` integer division operator causes compilation errors in parenthesized expressions.
+  - **`rewriteURL(url)` in `APITask.brs`:** Embeds `user:pass@host` into stream/thumbnail URLs so the Roku video player (which cannot attach custom headers) can authenticate.
+  - **Settings Dialog:** Shows "Auth: Configured" or "Auth: Not Set" (username is NOT displayed). "Change Auth" button opens the two-step credential dialog.
 - **Registry & Persistent Settings:**
   - Uses `roRegistrySection` with section name `"AppSettings"`.
   - **`serverURL`**: String representing the custom server IP and port (e.g., `https://192.168.1.7:8945`). The client normalizes all URLs to HTTPS via `rewriteURL()` to prevent NGINX redirect issues.
   - **`showPostPlayDialog`**: Boolean ("true"/"false") — whether to show "Video Finished" dialog after playback ends.
   - **`layoutMode`**: String — one of `"standard"`, `"grouped"`, `"compact"`. Controls the MarkupList rendering mode.
+  - **`basicAuthUsername`**: String — Basic Auth username for the Pinchflat server. Stored in registry alongside `serverURL`.
+  - **`basicAuthPassword`**: String — Basic Auth password for the Pinchflat server.
 - **Networking & Data Flow:**
   - Uses `roUrlTransfer` inside asynchronous SceneGraph `Task` nodes (`APITask`) for non-blocking HTTP API calls.
   - Dynamic server target URL is configured globally.
@@ -134,3 +145,8 @@ When generating, refactoring, or inspecting code across this workspace, strictly
 - `roUrlTransfer.PostFromString()` returns Integer (0 = success), not String. Compare with `== 0`, not `== "0"`.
 - Backticks `` ` `` are not valid string delimiters — use double quotes.
 - Custom TTF/OTF fonts do not render on this Roku firmware (tested via XML `<Font>` nodes and `roFontRegistry`). Only built-in Roku system fonts are usable: `LargeBoldSystemFont`, `MediumBoldSystemFont`, `SmallSystemFont`.
+- **`EncodeData()` is NOT a global function** on this Roku firmware — calling it causes runtime error `&he0`. Use a manual base64 implementation instead.
+- **`\` (integer division) causes compilation errors** in parenthesized expressions. Use `Int(a / b)` instead.
+- **`roUrlTransfer.GetResponseCode()` is NOT supported** — use content-based detection (empty response + healthcheck) instead.
+- **`init()` order matters:** Initialize default values for `m.*` fields BEFORE calling `loadSettings()`, not after. Setting `m.basicAuthUsername = ""` after `loadSettings()` will override what was loaded from the registry.
+- **`deploy.sh`** is the primary deployment script. It has cross-platform support (Linux/Windows) with OS detection and tool verification (prefers `zip`, falls back to `7z`). On Windows, it must be run from **Git Bash** (not Command Prompt) using `bash deploy.sh`.

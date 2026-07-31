@@ -141,6 +141,10 @@ EXPOSE ${PORT}
 # Only copy the final release from the build stage
 COPY --from=builder /app/_build/${MIX_ENV}/rel/pinchflat ./
 
+# Fix line endings in ALL shell scripts (mix release on Windows produces CRLF)
+RUN find /app -type f \( -name "*.sh" -o -name "docker_start" -o -name "check_file_permissions" -o -name "migrate" -o -name "server" -o -name "remote" \) -exec sed -i 's/\r$//' {} + && \
+    find /app/bin -type f -executable -exec sed -i 's/\r$//' {} +
+
 HEALTHCHECK --interval=30s --start-period=15s \
   CMD curl --fail http://localhost:${PORT}/healthcheck || exit 1
 

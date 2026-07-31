@@ -21,6 +21,7 @@ defmodule PinchflatWeb.Router do
   end
 
   pipeline :api_v1 do
+    plug :basic_auth
     plug :accepts, ["json"]
   end
 
