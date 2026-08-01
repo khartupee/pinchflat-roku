@@ -4,9 +4,6 @@ services:
       context: .
       dockerfile: ./docker/selfhosted.Dockerfile
     container_name: pinchflat-server
-    environment:
-      - BASIC_AUTH_USERNAME=abcd
-      - BASIC_AUTH_PASSWORD=1234
     ports:
       - '8945:8945'
     volumes:
