@@ -76,6 +76,13 @@ defmodule PinchflatWeb.Router do
     get "/healthcheck", HealthController, :check, log: false
   end
 
+  # Roku video stream endpoint — no auth so the Roku video player
+  # (which cannot send auth headers) can access it. No pipeline used
+  # to avoid :accepts restrictions that would block video content.
+  scope "/api/v1", PinchflatWeb do
+    get "/videos/:id/stream", Api.V1.VideoController, :stream
+  end
+
   scope "/api/v1", PinchflatWeb do
     pipe_through :api_v1
 
