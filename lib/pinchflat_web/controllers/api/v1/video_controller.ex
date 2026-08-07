@@ -2,8 +2,6 @@ defmodule PinchflatWeb.Api.V1.VideoController do
   use PinchflatWeb, :controller
 
   alias Pinchflat.Media
-  alias Pinchflat.Media.MediaItem
-  alias Pinchflat.Repo
 
   require Logger
 
